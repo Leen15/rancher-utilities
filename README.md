@@ -12,8 +12,8 @@
  Parameters:
  ```
   --server SERVER       Set rancher instance url
-  --source SOURCE       Set the rancher project from where to read data
-  --dest DEST           Set the rancher project to copy data
+  --source SOURCE       Set the rancher project ID from where to read data
+  --dest DEST           Set the rancher project ID to copy data
   --token TOKEN         Set the rancher auth token
   --rancher-path RANCHER_PATH
                         Set rancher binary path (default to ./rancher)

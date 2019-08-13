@@ -34,9 +34,9 @@ def check_settings():
     parser.add_argument("--server",
                         help="Set rancher instance url")
     parser.add_argument("--source",
-                        help="Set the rancher project from where to read data")
+                        help="Set the rancher project ID from where to read data")
     parser.add_argument("--dest",
-                        help="Set the rancher project to copy data")
+                        help="Set the rancher project ID to copy data")
     parser.add_argument("--token",
                         help="Set the rancher auth token")
     parser.add_argument("--rancher-path",
