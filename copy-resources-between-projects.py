@@ -32,7 +32,7 @@ def check_settings():
     print("Checking params...")
     parser = argparse.ArgumentParser()
     parser.add_argument("--server",
-                        help="set rancher instance url")
+                        help="Set rancher instance url")
     parser.add_argument("--source",
                         help="Set the rancher project from where to read data")
     parser.add_argument("--dest",
