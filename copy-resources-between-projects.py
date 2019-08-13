@@ -42,7 +42,7 @@ def check_settings():
     parser.add_argument("--rancher-path",
                         help="Set rancher binary path (default to ./rancher)")
     parser.add_argument("--copy-mode",
-                        help="tls certificates and registries credentials.\nAccepted values: tls, creds, all")
+                        help="Copy tls certificates, registries credentials or both.\nAccepted values: tls, creds, all")
 
     args = parser.parse_args()
     if args.server:

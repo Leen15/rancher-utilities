@@ -16,6 +16,6 @@
   --rancher-path RANCHER_PATH
                         Set rancher binary path (default to ./rancher)
   --copy-mode COPY_MODE
-                        tls certificates and registries credentials. Accepted
+                        Copy tls certificates, registries credentials or both. Accepted
                         values: tls, creds, all
 ```
