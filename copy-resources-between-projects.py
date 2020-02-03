@@ -12,8 +12,9 @@ except ImportError:
 RANCHER_URL = ""
 SOURCE_PROJECT = ""
 DEST_PROJECT = ""
+SECRET = ""
 AUTH_TOKEN = ""
-RANCHER_BIN = './rancher'
+RANCHER_BIN = './rancher '
 KUBECTL = RANCHER_BIN + ' kubectl'
 COPY_TLS = False
 COPY_CREDS = False
@@ -23,6 +24,7 @@ def check_settings():
     global RANCHER_URL
     global SOURCE_PROJECT
     global DEST_PROJECT
+    global SECRET
     global AUTH_TOKEN
     global RANCHER_BIN
     global KUBECTL
@@ -36,7 +38,9 @@ def check_settings():
     parser.add_argument("--source",
                         help="Set the rancher project ID from where to read data")
     parser.add_argument("--dest",
-                        help="Set the rancher project ID to copy data")
+                        help="Set the rancher project ID to copy data, multiple values allowed")
+    parser.add_argument("--secret",
+                        help="Search for a specific secret name (tls or creds)")
     parser.add_argument("--token",
                         help="Set the rancher auth token")
     parser.add_argument("--rancher-path",
@@ -51,6 +55,8 @@ def check_settings():
         SOURCE_PROJECT = args.source
     if args.dest:
         DEST_PROJECT = args.dest
+    if args.secret:
+        SECRET = args.secret
     if args.token:
         AUTH_TOKEN = args.token
     if args.rancher_path:
@@ -85,10 +91,9 @@ def check_settings():
     KUBECTL = RANCHER_BIN + ' kubectl'
 
 
-def create_tls(name, key, crt):
+def create_tls(name, key, crt, project):
     global AUTH_TOKEN
     global RANCHER_URL
-    global DEST_PROJECT
 
     headers = {
         'Authorization': 'Bearer ' + AUTH_TOKEN,
@@ -101,14 +106,13 @@ def create_tls(name, key, crt):
         'certs': crt
     }
     #print(json.dumps(data))
-    api_url = RANCHER_URL + '/v3/project/'+ DEST_PROJECT + '/certificate'
-    response = requests.post(api_url, headers = headers, data = json.dumps(data))
+    api_url = RANCHER_URL + '/v3/project/'+ project + '/certificate'
+    response = requests.post(api_url, headers = headers, data = json.dumps(data)) #, verify=False)
     return response.status_code
 
-def create_registry_credentials(name, registry):
+def create_registry_credentials(name, registry, project):
     global AUTH_TOKEN
     global RANCHER_URL
-    global DEST_PROJECT
 
     headers = {
         'Authorization': 'Bearer ' + AUTH_TOKEN,
@@ -121,8 +125,8 @@ def create_registry_credentials(name, registry):
                 }
     }
     data['registries'] = json.loads(registry)['auths']
-    api_url = RANCHER_URL + '/v3/project/'+ DEST_PROJECT + '/dockercredential'
-    response = requests.post(api_url, headers = headers, data = json.dumps(data))
+    api_url = RANCHER_URL + '/v3/project/'+ project + '/dockercredential'
+    response = requests.post(api_url, headers = headers, data = json.dumps(data)) #, verify=False)
     return response.status_code
 
 def rancher_login():
@@ -130,7 +134,7 @@ def rancher_login():
     global RANCHER_URL
     global SOURCE_PROJECT
     print("Login to rancher...")
-    cmd = RANCHER_BIN + ' login ' + RANCHER_URL + ' -t ' + AUTH_TOKEN + '  --context ' + SOURCE_PROJECT
+    cmd = RANCHER_BIN + ' login ' + RANCHER_URL + ' -t ' + AUTH_TOKEN + ' --context ' + SOURCE_PROJECT
     result = os.popen(cmd).read()
     if result != '':
         print(result)
@@ -141,28 +145,45 @@ if __name__ == "__main__":
 
     rancher_login()
 
+
+    dest_projects = DEST_PROJECT.split(',')
+
     print("Get namespaces from source project...")
     cmd = RANCHER_BIN + ' namespaces ps'
     result = os.popen(cmd).read()
+
+
+    already_created = []
 
     for line in result.splitlines()[1:]: #1: skip the first element with header
         namespace = line.split()[0]
         print("Namespace: " + namespace)
         print("Check secrets...")
         cmd = KUBECTL + ' get secrets -o json -n ' +  namespace
+        if (SECRET != ""):
+            cmd = cmd + " --field-selector metadata.name=" + SECRET
         secrets = os.popen(cmd).read()
         secrets_array = json.loads(secrets)['items']
         for secret in secrets_array:
             type = secret['type']
             name = secret['metadata']['name']
             print("- " + name + " (" + type + ")")
-            if type == 'kubernetes.io/tls' and COPY_TLS:
-                crt = secret['data']['tls.crt'].decode('base64')
-                key = secret['data']['tls.key'].decode('base64')
-                result = create_tls(name, key, crt)
-                print("\tcreate tls: " + str(result))
-            elif type == "kubernetes.io/dockerconfigjson" and COPY_CREDS:
-                registry = secret['data']['.dockerconfigjson'].decode('base64')
-                #print(registry)
-                result = create_registry_credentials(name, registry)
-                print("\tcreate_registry_credentials: " + str(result))
+            if (name in already_created):
+                if type == 'kubernetes.io/tls' and COPY_TLS:
+                    print("\ttls already created")
+                elif type == "kubernetes.io/dockerconfigjson" and COPY_CREDS:
+                    print("\tregistry_credentials already created")
+            else:        
+                if type == 'kubernetes.io/tls' and COPY_TLS:
+                    crt = secret['data']['tls.crt'].decode('base64')
+                    key = secret['data']['tls.key'].decode('base64')
+                    for project in dest_projects:
+                        result = create_tls(name, key, crt, project)
+                        print("\tcreate tls on " + project + ": " + str(result))
+                elif type == "kubernetes.io/dockerconfigjson" and COPY_CREDS:
+                    registry = secret['data']['.dockerconfigjson'].decode('base64')
+                    #print(registry)
+                    for project in dest_projects:
+                        result = create_registry_credentials(name, registry, project)
+                        print("\tcreate registry_credentials on " + project + ": " + str(result))
+                already_created.append(name)
