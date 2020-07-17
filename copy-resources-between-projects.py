@@ -1,4 +1,5 @@
 import os
+import base64
 
 try:
     import requests
@@ -175,13 +176,13 @@ if __name__ == "__main__":
                     print("\tregistry_credentials already created")
             else:        
                 if type == 'kubernetes.io/tls' and COPY_TLS:
-                    crt = secret['data']['tls.crt'].decode('base64')
-                    key = secret['data']['tls.key'].decode('base64')
+                    crt = base64.b64decode(secret['data']['tls.crt'].encode("ascii")).decode("ascii")
+                    key = base64.b64decode(secret['data']['tls.key'].encode("ascii")).decode("ascii")
                     for project in dest_projects:
                         result = create_tls(name, key, crt, project)
                         print("\tcreate tls on " + project + ": " + str(result))
                 elif type == "kubernetes.io/dockerconfigjson" and COPY_CREDS:
-                    registry = secret['data']['.dockerconfigjson'].decode('base64')
+                    registry = base64.b64decode(secret['data']['.dockerconfigjson'].encode("ascii")).decode("ascii")
                     #print(registry)
                     for project in dest_projects:
                         result = create_registry_credentials(name, registry, project)
