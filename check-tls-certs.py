@@ -148,8 +148,9 @@ if __name__ == "__main__":
                     if ('tls' in ingress['spec']):
                         tls_array = ingress['spec']['tls']
                         for tls in tls_array:
-                            lb = {'hosts': tls['hosts'], 'secretName': tls['secretName'] }
-                            load_balancing.append(lb)
+                            if ('secretName' in tls):
+                                lb = {'hosts': tls['hosts'], 'secretName': tls['secretName'] }
+                                load_balancing.append(lb)
 
             for cert in certs:
                 print(cert['mode'] + " - " + cert['name'] + " (" + cert['expire'] + ")" + bcolors.ENDC)
